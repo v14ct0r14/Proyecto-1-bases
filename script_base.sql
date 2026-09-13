@@ -94,7 +94,16 @@ CREATE TABLE disponibilidad (
 	hora_final TIMESTAMP NOT NULL,
 	CONSTRAINT check_horario CHECK (hora_final > hora_inicial),
 	id_usuario INT NOT NULL REFERENCES usuarios(id_usuario)
+);
+
+SET search_path TO prototipo, public;
+CREATE TABLE tipo_disponibilidad(
+	id_tipo_disponibilidad SERIAL PRIMARY KEY,
+	id_disponibilidad INT NOT NULL REFERENCES disponibilidad(id_disponibilidad),
+	id_usuario INT NOT NULL REFERENCES usuarios(id_usuario),
+	nombre VARCHAR (35) NOT NULL
 )
+
 
 -- Implementación de Cálculos Dinámicos (RF07, RE03, RN03) mediante vistas
 
