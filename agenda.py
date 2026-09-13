@@ -27,7 +27,7 @@ class AppAgenda(ctk.CTk):
             "user": "postgres",
             "password": "caca2",
             "host": "localhost",
-            "port": "5437",
+            "port": "5432",
         }
 
         self.usuarios_combo = {}
