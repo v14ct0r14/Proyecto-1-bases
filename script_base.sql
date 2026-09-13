@@ -1,5 +1,4 @@
 -- Crear la base de datos
-CREATE DATABASE agenda;
 CREATE SCHEMA prototipo;
 
 -- Configurar el search_path para que las tablas se creen dentro de ese esquema
@@ -64,6 +63,17 @@ CREATE TABLE log_accesos (
     fecha_acceso TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+SET search_path TO prototipo, public; -- tuve que poner esto porque todas las tablas que yo creé se iban al public entonces no se podían conectar
+
+CREATE TABLE prototipo.ubicacion (
+	id_ubicacion SERIAL PRIMARY KEY,
+	nombre_lugar VARCHAR (55) NOT NULL,
+	direccion VARCHAR (55),
+	id_evento INT REFERENCES eventos(id_evento),
+	capacidad INT NOT NULL,
+	ciudad VARCHAR (20) NOT NULL 
+);
+
 -- Implementación de Cálculos Dinámicos (RF07, RE03, RN03) mediante vistas
 
 -- Vista para Antigüedad
@@ -103,3 +113,4 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_evitar_ciclo
 BEFORE INSERT OR UPDATE ON categorias
 FOR EACH ROW EXECUTE FUNCTION evitar_ciclo_categorias();
+
