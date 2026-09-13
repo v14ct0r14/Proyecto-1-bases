@@ -83,12 +83,18 @@ CREATE TABLE tareas_asociadas (
 	descripcion TEXT,
 	fecha_limite DATE NOT NULL,
 	prioridad VARCHAR(10) NOT NULL CHECK (prioridad IN ('baja','Media','Alta')),
-	id_evento INT REFERENCES eventos(id_evento),
-	id_usuario INT REFERENCES usuarios(id_usuario)
+	id_evento INT NOT NULL REFERENCES eventos(id_evento),
+	id_usuario INT NOT NULL REFERENCES usuarios(id_usuario)
 );
 
 SET search_path TO prototipo, public;
-CREATE TABLE 
+CREATE TABLE disponibilidad (
+	id_disponibilidad SERIAL PRIMARY KEY,
+	hora_inicial TIMESTAMP NOT NULL,
+	hora_final TIMESTAMP NOT NULL,
+	CONSTRAINT check_horario CHECK (hora_final > hora_inicial),
+	id_usuario INT NOT NULL REFERENCES usuarios(id_usuario)
+)
 
 -- Implementación de Cálculos Dinámicos (RF07, RE03, RN03) mediante vistas
 
