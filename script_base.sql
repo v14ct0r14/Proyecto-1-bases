@@ -65,7 +65,7 @@ CREATE TABLE log_accesos (
 
 SET search_path TO prototipo, public; -- tuve que poner esto porque todas las tablas que yo creé se iban al public entonces no se podían conectar
 
-CREATE TABLE prototipo.ubicacion (
+CREATE TABLE ubicacion(
 	id_ubicacion SERIAL PRIMARY KEY,
 	nombre_lugar VARCHAR (55) NOT NULL,
 	direccion VARCHAR (55),
@@ -73,6 +73,22 @@ CREATE TABLE prototipo.ubicacion (
 	capacidad INT NOT NULL,
 	ciudad VARCHAR (20) NOT NULL 
 );
+
+SET search_path TO prototipo, public;
+CREATE TABLE tareas_asociadas (
+	id_tarea SERIAL PRIMARY KEY,
+	estado VARCHAR(15) NOT NULL DEFAULT 'Pendiente' CHECK (estado IN ('Pendiente', 'En proceso', 'Completada', 'Vencida')),
+	responsable VARCHAR (30),
+	nombre_tareas VARCHAR (30) NOT NULL,
+	descripcion TEXT,
+	fecha_limite DATE NOT NULL,
+	prioridad VARCHAR(10) NOT NULL CHECK (prioridad IN ('baja','Media','Alta')),
+	id_evento INT REFERENCES eventos(id_evento),
+	id_usuario INT REFERENCES usuarios(id_usuario)
+);
+
+SET search_path TO prototipo, public;
+CREATE TABLE 
 
 -- Implementación de Cálculos Dinámicos (RF07, RE03, RN03) mediante vistas
 
