@@ -23,9 +23,9 @@ class AppAgenda(ctk.CTk):
         self.minsize(1050, 650)
 
         self.conn_params = {
-            "dbname": "agenda",
+            "dbname": "Agenda",
             "user": "postgres",
-            "password": "postgres",
+            "password": "caca2",
             "host": "localhost",
             "port": "5437",
         }
