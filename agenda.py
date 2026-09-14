@@ -653,8 +653,7 @@ class AppAgenda(ctk.CTk):
         ctk.CTkButton(form, text="Registrar ubicación", command=self.agregar_ubicacion).pack(fill="x", padx=10, pady=(15, 5))
         ctk.CTkButton(form, text="Actualizar seleccionada", command=self.actualizar_ubicacion).pack(fill="x", padx=10, pady=5)
         ctk.CTkButton(form, text="Nueva / Limpiar", command=self.limpiar_form_ubicacion, fg_color="gray").pack(fill="x", padx=10, pady=5)
-        ctk.CTkButton(form, text="Eliminar seleccionada", command=self.eliminar_ubicacion,
-                  fg_color="#b33939", hover_color="#8f2d2d").pack(fill="x", padx=10, pady=5)
+        ctk.CTkButton(form, text="Eliminar seleccionada", command=self.eliminar_ubicacion, fg_color="#b33939", hover_color="#8f2d2d").pack(fill="x", padx=10, pady=5)
         
     def ubicacion_seleccionada_id(self):
         sel = self.tree_ubicacion.selection()
@@ -669,7 +668,19 @@ class AppAgenda(ctk.CTk):
         self.entry_ubicacion_direccion.delete(0, tk.END); self.entry_ubicacion_direccion.insert(0, vals[2])
         self.entry_ubicacion_ciudad.delete(0, tk.END); self.entry_ubicacion_ciudad.insert(0, vals[3])
         self.entry_ubicacion_capacidad.delete(0, tk.END); self.entry_ubicacion_capacidad.insert(0, vals[4])
-        self.entry_ubicacion_id_evento.delete(0, tk.END); self.entry_ubicacion_id_evento.insert(0, vals[5])
+        if vals[5] == "" or vals[5] is None:
+            self.combo_ubicacion_evento.set("Sin evento")
+        else:
+            id_evento = int(vals[5])
+            encontrado = False
+        for etiqueta, eid in self.eventos_combo.items():
+            if eid == id_evento:
+                self.combo_ubicacion_evento.set(etiqueta)
+                encontrado = True
+                break
+
+        if not encontrado:
+            self.combo_ubicacion_evento.set("Sin evento")
 
     def limpiar_form_ubicacion(self):
         self.tree_ubicacion.selection_remove(self.tree_ubicacion.selection())
@@ -677,7 +688,7 @@ class AppAgenda(ctk.CTk):
         self.entry_ubicacion_direccion.delete(0, tk.END)
         self.entry_ubicacion_ciudad.delete(0, tk.END)
         self.entry_ubicacion_capacidad.delete(0, tk.END)
-        self.entry_ubicacion_id_evento.delete(0, tk.END)
+        self.combo_ubicacion_evento.set("Sin evento")
 
     def _datos_ubicacion_formulario(self):
         nombre_lugar = self.entry_ubicacion_nombre_lugar.get().strip()
