@@ -132,9 +132,6 @@ class AppAgenda(ctk.CTk):
             ("Categorías", "📁"),
             ("Eventos", "🗓️"),
             ("Ubicaciones", "📍"),
-            ("Histórico", "📜"),
-            ("Ranking", "🏆"),
-            ("Reportes", "📊")
             #("Tareas pendientes", "👀"),
             #("Disponibilidad", "💼")
         ], start=2):
@@ -176,9 +173,6 @@ class AppAgenda(ctk.CTk):
         self.tab_categorias = self.tabview.add("Categorías")
         self.tab_eventos = self.tabview.add("Eventos")
         self.tab_ubicacion = self.tabview.add("Ubicaciones")
-        self.tab_historico = self.tabview.add("Histórico")
-        self.tab_ranking = self.tabview.add("Ranking")
-        self.tab_reportes = self.tabview.add("Reportes")
         #self.tab_tareas_pendientes = self.tabview.add("Tareas pendientes")
         #self.tab_disponibilidad = self.tabview.add("Disponibilidad")
 
@@ -186,9 +180,6 @@ class AppAgenda(ctk.CTk):
         self.configurar_pestana_categorias()
         self.configurar_pestana_eventos()
         self.configurar_pestana_ubicacion()
-        self.configurar_pestana_historico()
-        self.configurar_pestana_ranking()
-        self.configurar_pestana_reportes()
         #self.configurar_pestana_tareas_pendientes()
         #self.configurar_pestana_disponibilidad()
         self.seleccionar_modulo("Usuarios")
@@ -785,14 +776,14 @@ class AppAgenda(ctk.CTk):
                     self.ubicacion_combo[etiqueta] = row[0]
             except Exception as e:
                 print(f"Error cargando ubicaciones: {e}")
-
+    
     # -------------------- REFRESCO GENERAL --------------------
 
     def actualizar_todas_las_tablas(self):
-        self.cargar_datos_usuarios()
-        self.cargar_datos_categorias()
-        self.cargar_datos_eventos()
-        self.cargar_datos_ubicacion()
+            self.cargar_datos_usuarios()
+            self.cargar_datos_categorias()
+            self.cargar_datos_eventos()
+            self.cargar_datos_ubicacion()
 
 
 if __name__ == "__main__":
