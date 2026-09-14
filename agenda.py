@@ -33,6 +33,7 @@ class AppAgenda(ctk.CTk):
         self.usuarios_combo = {}
         self.categorias_combo = {}
         self.categorias_padre_combo = {}
+        self.eventos_combo = {}
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
@@ -556,6 +557,8 @@ class AppAgenda(ctk.CTk):
             """, datos)
             self.limpiar_form_evento(); self.cargar_datos_eventos()
             messagebox.showinfo("Éxito", "Evento creado correctamente.")
+            self.eventos_combo = {}
+            
         except Exception as e:
             messagebox.showerror("No se pudo crear el evento", str(e))
 
@@ -594,7 +597,12 @@ class AppAgenda(ctk.CTk):
                 ORDER BY e.fecha_inicio DESC
             """, fetch=True)
             for item in self.tree_eventos.get_children(): self.tree_eventos.delete(item)
+            self.eventos_combo = {}
             for row in rows:
+                etiqueta_evento = f"{row[6]} — #{row[0]}"
+                self.eventos_combo[etiqueta_evento] = row[0]
+                etiqueta_evento = f"{row[6]} — #{row[0]}"
+                self.eventos_combo[etiqueta_evento] = row[0]
                 usuario = f"{row[2]} {row[3]} — #{row[1]}"
                 categoria = f"{row[5]} — #{row[4]}"
                 inicio = row[7].strftime("%Y-%m-%d %H:%M") if hasattr(row[7], "strftime") else row[7]
@@ -605,12 +613,14 @@ class AppAgenda(ctk.CTk):
             valores_c = ["Seleccione una categoría"] + list(self.categorias_combo.keys())
             self.combo_ev_usuario.configure(values=valores_u)
             self.combo_ev_categoria.configure(values=valores_c)
+            valores_eventos = ["Sin evento"] + list(self.eventos_combo.keys())
+            self.combo_ubicacion_evento.configure(values=valores_eventos)
         except Exception as e:
             print(f"Error cargando eventos: {e}")
 
 #-----------Ubicación------------------
     def configurar_pestana_ubicacion (self):
-        self.crear_encabezado(self.tab_ubicacion,"Ubicacion", "Administra los recintos físicos donde se realizan los eventos.")
+        self.crear_encabezado(self.tab_ubicacion,"Ubicacion", "Administra los recintos físicos de los eventos.")
         cuerpo = ctk.CTkFrame(self.tab_ubicacion, fg_color="transparent")
         cuerpo.pack(fill="both", expand=True, padx=10, pady=5)
         cuerpo.grid_columnconfigure(0, weight=3); cuerpo.grid_columnconfigure(1, weight=1)
@@ -620,8 +630,8 @@ class AppAgenda(ctk.CTk):
         form = ctk.CTkScrollableFrame(cuerpo, width=320); form.grid(row=0, column=1, sticky="nsew")
 
         self.tree_ubicacion = self.crear_treeview(
-        tabla, ("ID", "Nombre", "Dirección", "Ciudad", "Capacidad"),
-        (60, 150, 200, 120, 90))
+        tabla, ("ID", "Nombre", "Dirección", "Ciudad", "Capacidad", "ID del evento"),
+        (60, 150, 200, 120, 90, 90))
 
         self.tree_ubicacion.bind("<<TreeviewSelect>>", self.cargar_ubicacion_seleccionada)
 
@@ -634,6 +644,11 @@ class AppAgenda(ctk.CTk):
         self.entry_ubicacion_ciudad.pack(fill="x", padx=10, pady=6)
         self.entry_ubicacion_capacidad = ctk.CTkEntry(form, placeholder_text="Capacidad")
         self.entry_ubicacion_capacidad.pack(fill="x", padx=10, pady=6)
+        ctk.CTkLabel(form, text="Evento").pack(anchor="w", padx=10, pady=(8, 2))
+        self.combo_ubicacion_evento = ctk.CTkComboBox(form,values=["Sin evento"],state="readonly")
+        self.combo_ubicacion_evento.set("Sin evento")
+        self.combo_ubicacion_evento.pack(fill="x", padx=10, pady=6)
+
 
         ctk.CTkButton(form, text="Registrar ubicación", command=self.agregar_ubicacion).pack(fill="x", padx=10, pady=(15, 5))
         ctk.CTkButton(form, text="Actualizar seleccionada", command=self.actualizar_ubicacion).pack(fill="x", padx=10, pady=5)
@@ -654,6 +669,7 @@ class AppAgenda(ctk.CTk):
         self.entry_ubicacion_direccion.delete(0, tk.END); self.entry_ubicacion_direccion.insert(0, vals[2])
         self.entry_ubicacion_ciudad.delete(0, tk.END); self.entry_ubicacion_ciudad.insert(0, vals[3])
         self.entry_ubicacion_capacidad.delete(0, tk.END); self.entry_ubicacion_capacidad.insert(0, vals[4])
+        self.entry_ubicacion_id_evento.delete(0, tk.END); self.entry_ubicacion_id_evento.insert(0, vals[5])
 
     def limpiar_form_ubicacion(self):
         self.tree_ubicacion.selection_remove(self.tree_ubicacion.selection())
@@ -661,27 +677,35 @@ class AppAgenda(ctk.CTk):
         self.entry_ubicacion_direccion.delete(0, tk.END)
         self.entry_ubicacion_ciudad.delete(0, tk.END)
         self.entry_ubicacion_capacidad.delete(0, tk.END)
+        self.entry_ubicacion_id_evento.delete(0, tk.END)
 
     def _datos_ubicacion_formulario(self):
         nombre_lugar = self.entry_ubicacion_nombre_lugar.get().strip()
         direccion = self.entry_ubicacion_direccion.get().strip()
         ciudad = self.entry_ubicacion_ciudad.get().strip()
         capacidad = self.entry_ubicacion_capacidad.get().strip()
+        evento_seleccionado = (self.combo_ubicacion_evento.get())
         if not nombre_lugar or not direccion or not ciudad or not capacidad:
             raise ValueError("Todos los campos son obligatoriosS")
         if not capacidad.isdigit() or int(capacidad) <= 0:
             raise ValueError("La capacidad debe ser un número entero mayor a 0.")
-        return nombre_lugar, direccion, ciudad, int(capacidad)
+        if evento_seleccionado == "Sin evento":
+            id_evento = None
+        else:
+            id_evento = self.eventos_combo.get(evento_seleccionado)
+
+        return (nombre_lugar, direccion,ciudad,int(capacidad),id_evento)
 
     def agregar_ubicacion(self): 
         try:
             datos = self._datos_ubicacion_formulario()
             self.ejecutar_consulta(
-                "INSERT INTO ubicacion (nombre_lugar, direccion, ciudad, capacidad) VALUES (%s, %s, %s, %s)",
+                "INSERT INTO ubicacion (nombre_lugar, direccion, ciudad, capacidad, id_evento) VALUES (%s, %s, %s, %s, %s)",
                 datos
             )
             self.limpiar_form_ubicacion(); self.actualizar_todas_las_tablas()
             messagebox.showinfo("Éxito", "Ubicación registrada correctamente.")
+            self.combo_ubicacion_evento.set("Sin evento")
         except ValueError as e:
             messagebox.showwarning("Datos inválidos", str(e))
         except Exception as e:
@@ -694,8 +718,8 @@ class AppAgenda(ctk.CTk):
         try:
             nombre_lugar, direccion, ciudad, capacidad = self._datos_ubicacion_formulario()
             self.ejecutar_consulta(
-                "UPDATE ubicacion SET nombre_lugar=%s, direccion=%s, ciudad=%s, capacidad=%s WHERE id_ubicacion=%s",
-                (nombre_lugar, direccion, ciudad, capacidad, uid)
+                "UPDATE ubicacion SET nombre_lugar=%s, direccion=%s, ciudad=%s, capacidad=%s, id_evento=%s, WHERE id_ubicacion=%s",
+                (nombre_lugar, direccion, ciudad, capacidad, id_evento, uid)
             )
             self.actualizar_todas_las_tablas()
             messagebox.showinfo("Éxito", "Ubicación actualizada.")
@@ -704,6 +728,10 @@ class AppAgenda(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+        eud = self.id_evento()
+        if eud is None:
+            return messagebox.showwarning("Selección requerida", "Seleccione un evento ID.")
+    
     def eliminar_ubicacion(self):
             uid = self.ubicacion_seleccionada_id()
             if uid is None:
@@ -725,7 +753,7 @@ class AppAgenda(ctk.CTk):
     def cargar_datos_ubicacion(self):
             try:
                 rows = self.ejecutar_consulta(
-                    "SELECT id_ubicacion, nombre_lugar, direccion, ciudad, capacidad FROM ubicacion ORDER BY nombre_lugar",
+                    "SELECT id_ubicacion, nombre_lugar, direccion, ciudad, capacidad, id_evento FROM ubicacion ORDER BY nombre_lugar",
                     fetch=True
                 )
                 for item in self.tree_ubicacion.get_children():
