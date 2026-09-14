@@ -673,14 +673,14 @@ class AppAgenda(ctk.CTk):
             raise ValueError("La capacidad debe ser un número entero mayor a 0.")
         return nombre_lugar, direccion, ciudad, int(capacidad)
 
-    def agregar_ubicacion(self): #Este bloque lo que hace es que guarda una nueva ubicación en la base de datos utilizando los datos de un formulario y actualiza la interfaz gráfica :p
+    def agregar_ubicacion(self): 
         try:
             datos = self._datos_ubicacion_formulario()
             self.ejecutar_consulta(
-                "INSERT INTO ubicacion (nombre, direccion, ciudad, capacidad) VALUES (%s, %s, %s, %s)",
+                "INSERT INTO ubicacion (nombre_lugar, direccion, ciudad, capacidad) VALUES (%s, %s, %s, %s)",
                 datos
             )
-            self.limpiar_form_ubicacio(); self.actualizar_todas_las_tablas()
+            self.limpiar_form_ubicacion(); self.actualizar_todas_las_tablas()
             messagebox.showinfo("Éxito", "Ubicación registrada correctamente.")
         except ValueError as e:
             messagebox.showwarning("Datos inválidos", str(e))
