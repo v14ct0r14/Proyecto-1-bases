@@ -169,15 +169,15 @@ class AppAgenda(ctk.CTk):
         self.tab_categorias = self.tabview.add("Categorías")
         self.tab_eventos = self.tabview.add("Eventos")
         self.tab_ubicacion = self.tabview.add("Ubicaciones")
-        self.tab_tareas_pendientes = self.tabview.add("Tareas pendientes")
-        self.tab_disponibilidad = self.tabview.add("Disponibilidad")
+        #self.tab_tareas_pendientes = self.tabview.add("Tareas pendientes")
+        #self.tab_disponibilidad = self.tabview.add("Disponibilidad")
 
         self.configurar_pestana_usuarios()
         self.configurar_pestana_categorias()
         self.configurar_pestana_eventos()
         self.configurar_pestana_ubicacion()
-        self.configurar_pestana_tareas_pendientes()
-        self.configurar_pestana_disponibilidad()
+        #self.configurar_pestana_tareas_pendientes()
+        #self.configurar_pestana_disponibilidad()
         self.seleccionar_modulo("Usuarios")
 
     def al_cambiar_pestana(self):
@@ -605,6 +605,38 @@ class AppAgenda(ctk.CTk):
         except Exception as e:
             print(f"Error cargando eventos: {e}")
 
+#---------------- Ubicación---------
+    def configurar_pestana_ubicacion(self):
+        self.crear_encabezado(self.tab_ubicacion, "Ubicaciones", "Registra, consulta y administra las ubicaciones de los eventos.")
+
+        cuerpo = ctk.CTkFrame(self.tab_ubicacion, fg_color="transparent")
+        cuerpo.pack(fill="both", expand=True, padx=10, pady=5)
+        cuerpo.grid_columnconfigure(0, weight=3)
+        cuerpo.grid_columnconfigure(1, weight=1)
+        cuerpo.grid_rowconfigure(0, weight=1)
+
+        tabla_frame = ctk.CTkFrame(cuerpo)
+        tabla_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        form = ctk.CTkScrollableFrame(cuerpo, width=300)
+        form.grid(row=0, column=1, sticky="nsew")
+
+        self.tree_ubicacion = self.crear_treeview(
+            tabla_frame, ("ID", "Dirección", "Ciudad", "Capacidad", "Evento"),
+            (70, 160, 160, 80, 80)
+        )
+        self.tree_ubicacion.bind("<<TreeviewSelect>>", self.cargar_ubicacion_seleccionado)
+
+        ctk.CTkLabel(form, text="Archivo de ubicaciones", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(10, 15))
+        self.entry_direccion = ctk.CTkEntry(form, placeholder_text="Dirección")
+        self.entry_direccion.pack(fill="x", padx=10, pady=6)
+        self.entry_ciudad = ctk.CTkEntry(form, placeholder_text="Ciudad")
+        self.entry_ciudad.pack(fill="x", padx=10, pady=6)
+
+
+        ctk.CTkButton(form, text="➕ Registrar ubicación", command=self.agregar_ubicacion).pack(fill="x", padx=10, pady=(12, 5))
+        ctk.CTkButton(form, text="💾 Actualizar ubicacion", command=self.actualizar_ubicacion).pack(fill="x", padx=10, pady=5)
+        ctk.CTkButton(form, text="🧹 Nuevo / Limpiar", command=self.limpiar_form_ubicacion, fg_color="gray").pack(fill="x", padx=10, pady=5)
+        ctk.CTkButton(form, text="🗑️ Eliminar seleccionado", command=self.eliminar_ubicacion, fg_color="#b33939", hover_color="#8f2d2d").pack(fill="x", padx=10, pady=5)
     # -------------------- REFRESCO GENERAL --------------------
 
     def actualizar_todas_las_tablas(self):
