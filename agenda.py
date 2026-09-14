@@ -168,13 +168,16 @@ class AppAgenda(ctk.CTk):
         self.tab_usuarios = self.tabview.add("Usuarios")
         self.tab_categorias = self.tabview.add("Categorías")
         self.tab_eventos = self.tabview.add("Eventos")
-        self.tab_eventos = self.tabview.add("Ubicaciones")
-        self.tab_eventos = self.tabview.add("Tareas pendientes")
-        self.tab_eventos = self.tabview.add("Disponibilidad")
+        self.tab_ubicacion = self.tabview.add("Ubicaciones")
+        self.tab_tareas_pendientes = self.tabview.add("Tareas pendientes")
+        self.tab_disponibilidad = self.tabview.add("Disponibilidad")
 
         self.configurar_pestana_usuarios()
         self.configurar_pestana_categorias()
         self.configurar_pestana_eventos()
+        self.configurar_pestana_ubicacion()
+        self.configurar_pestana_tareas_pendientes()
+        self.configurar_pestana_disponibilidad()
         self.seleccionar_modulo("Usuarios")
 
     def al_cambiar_pestana(self):
