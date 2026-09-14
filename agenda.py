@@ -694,7 +694,7 @@ class AppAgenda(ctk.CTk):
         try:
             nombre_lugar, direccion, ciudad, capacidad = self._datos_ubicacion_formulario()
             self.ejecutar_consulta(
-                "UPDATE ubicaciones SET nombre=%s, direccion=%s, ciudad=%s, capacidad=%s WHERE id_ubicacion=%s",
+                "UPDATE ubicacion SET nombre_lugar=%s, direccion=%s, ciudad=%s, capacidad=%s WHERE id_ubicacion=%s",
                 (nombre_lugar, direccion, ciudad, capacidad, uid)
             )
             self.actualizar_todas_las_tablas()
@@ -711,7 +711,7 @@ class AppAgenda(ctk.CTk):
             if not messagebox.askyesno("Confirmar", "¿Eliminar la ubicación seleccionada?"):
                 return
             try:
-                self.ejecutar_consulta("DELETE FROM ubicaciones WHERE id_ubicacion=%s", (uid,))
+                self.ejecutar_consulta("DELETE FROM ubicacion WHERE id_ubicacion=%s", (uid,))
                 self.limpiar_form_ubicacion(); self.actualizar_todas_las_tablas()
                 messagebox.showinfo("Eliminado", "Ubicación eliminada.")
             except psycopg2.errors.ForeignKeyViolation:
@@ -725,7 +725,7 @@ class AppAgenda(ctk.CTk):
     def cargar_datos_ubicacion(self):
             try:
                 rows = self.ejecutar_consulta(
-                    "SELECT id_ubicacion, nombre, direccion, ciudad, capacidad FROM ubicaciones ORDER BY nombre",
+                    "SELECT id_ubicacion, nombre_lugar, direccion, ciudad, capacidad FROM ubicacion ORDER BY nombre_lugar",
                     fetch=True
                 )
                 for item in self.tree_ubicacion.get_children():
