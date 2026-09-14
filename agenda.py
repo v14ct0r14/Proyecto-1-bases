@@ -168,6 +168,9 @@ class AppAgenda(ctk.CTk):
         self.tab_usuarios = self.tabview.add("Usuarios")
         self.tab_categorias = self.tabview.add("Categorías")
         self.tab_eventos = self.tabview.add("Eventos")
+        self.tab_eventos = self.tabview.add("Ubicaciones")
+        self.tab_eventos = self.tabview.add("Tareas pendientes")
+        self.tab_eventos = self.tabview.add("Disponibilidad")
 
         self.configurar_pestana_usuarios()
         self.configurar_pestana_categorias()
