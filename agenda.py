@@ -34,6 +34,8 @@ class AppAgenda(ctk.CTk):
         self.categorias_combo = {}
         self.categorias_padre_combo = {}
         self.eventos_combo = {}
+        self.usuarios_disponibilidad_combo = {}
+        self.tipo_disponibilidad_combo = {}
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
@@ -789,15 +791,15 @@ class AppAgenda(ctk.CTk):
         cuerpo.grid_rowconfigure(0, weight=3)
         cuerpo.grid_rowconfigure(1, weight=2)
 
-        # ---------------- RF-11: CRUD de disponibilidades ----------------
+        # ---------------- disponibilidades ----------------
         tabla = ctk.CTkFrame(cuerpo)
         tabla.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
 
         form = ctk.CTkScrollableFrame(cuerpo, width=350)
         form.grid(row=0, column=1, sticky="nsew")
 
-        self.tree_disponibilidades = self.crear_treeview(tabla,("ID", "Usuario", "Fecha", "Inicio", "Fin", "Estado"),(70, 220, 120, 90, 90, 130))
-        self.tree_disponibilidades.bind("<<TreeviewSelect>>", self.cargar_disponibilidad_seleccionada)
+        self.tree_disponibilidad = self.crear_treeview(tabla,("ID", "Usuario", "Fecha", "Inicio", "Fin", "Estado"),(70, 220, 120, 90, 90, 130))
+        self.tree_disponibilidad.bind("<<TreeviewSelect>>", self.cargar_disponibilidad_seleccionada)
 
         ctk.CTkLabel(form, text="Formulario de disponibilidad", font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(10, 15))
 
@@ -821,13 +823,15 @@ class AppAgenda(ctk.CTk):
         self.hora_disp_fin.pack(side="left", fill="x", expand=True, padx=(4, 0))
 
         ctk.CTkLabel(form, text="Estado de disponibilidad").pack(anchor="w", padx=10, pady=(8, 2))
-        self.combo_disp_tipo = ctk.CTkComboBox(form, values=["Seleccione un estado"], state="readonly")
-        self.combo_disp_tipo.set("Seleccione un estado")
-        self.combo_disp_tipo.pack(fill="x", padx=10, pady=4)
+
+        self.entry_disp_tipo = ctk.CTkEntry(form, placeholder_text="disponible / ocupado / no disponible")
+
+        self.entry_disp_tipo.pack(fill="x", padx=10, pady=4)
         ctk.CTkButton(form, text="➕ Registrar disponibilidad", command=self.agregar_disponibilidad).pack(fill="x", padx=10, pady=(15, 5))
         ctk.CTkButton(form, text="💾 Actualizar seleccionada", command=self.actualizar_disponibilidad).pack(fill="x", padx=10, pady=5)
         ctk.CTkButton(form, text="🧹 Nueva / Limpiar", command=self.limpiar_form_disponibilidad, fg_color="gray").pack(fill="x", padx=10, pady=5)
         ctk.CTkButton(form, text="🗑️ Eliminar seleccionada", command=self.eliminar_disponibilidad, fg_color="#b33939", hover_color="#8f2d2d").pack(fill="x", padx=10, pady=5)
+
 
         # ---------------- RF-12: análisis de intervalos ----------------
         analisis = ctk.CTkFrame(cuerpo)
@@ -881,150 +885,506 @@ class AppAgenda(ctk.CTk):
         self.hora_busqueda_inicio.insert(0, "14:00")
         self.hora_busqueda_fin.insert(0, "16:00")
 
+    def cargar_usuarios_disponibilidad(self):
+        try:
+            rows = self.ejecutar_consulta(
+                """
+                SELECT id_usuario, nombre, apellido
+                FROM usuarios
+                ORDER BY nombre, apellido """, fetch=True)
+
+            self.usuarios_disponibilidad_combo = {}
+
+            for id_usuario, nombre, apellido in rows:
+                etiqueta = f"{nombre} {apellido} — #{id_usuario}"
+                self.usuarios_disponibilidad_combo[etiqueta] = id_usuario
+
+            valores = (["Seleccione un usuario"] + list(self.usuarios_disponibilidad_combo.keys()))
+            self.combo_disp_usuario.configure(values=valores)
+
+            if self.combo_disp_usuario.get() not in valores:
+                self.combo_disp_usuario.set("Seleccione un usuario")
+
+        except Exception as e:
+            print(f"Error cargando usuarios de disponibilidad: {e}")
+
+
     def disponibilidad_seleccionada_id(self):
-        sel = self.tree_disponibilidades.selection()
+        sel = self.tree_disponibilidad.selection()
+
         if not sel:
             return None
-        return self.tree_disponibilidades.item(sel[0])["values"][0]
+
+        return self.tree_disponibilidad.item(sel[0])["values"][0]
 
     def cargar_disponibilidad_seleccionada(self, _=None):
-        sel = self.tree_disponibilidades.selection()
+        sel = self.tree_disponibilidad.selection()
+
         if not sel:
             return
 
-        vals = self.tree_disponibilidades.item(sel[0])["values"]
+        vals = self.tree_disponibilidad.item(sel[0])["values"]
+
         self.combo_disp_usuario.set(vals[1])
+
         self.establecer_fecha(self.fecha_disponibilidad, str(vals[2]))
+
         self.hora_disp_inicio.delete(0, tk.END)
         self.hora_disp_inicio.insert(0, str(vals[3]))
+
         self.hora_disp_fin.delete(0, tk.END)
         self.hora_disp_fin.insert(0, str(vals[4]))
-        self.combo_disp_tipo.set(vals[5])
+
+        self.entry_disp_tipo.delete(0, tk.END)
+        self.entry_disp_tipo.insert(0, str(vals[5]))
 
     def limpiar_form_disponibilidad(self):
-        if hasattr(self, "tree_disponibilidades"):
-            self.tree_disponibilidades.selection_remove(
-                self.tree_disponibilidades.selection()
-            )
+        if hasattr(self, "tree_disponibilidad"):
+            self.tree_disponibilidad.selection_remove(self.tree_disponibilidad.selection())
+
         self.combo_disp_usuario.set("Seleccione un usuario")
-        self.combo_disp_tipo.set("Seleccione un estado")
+
+        self.entry_disp_tipo.delete(0, tk.END)
+
         self.establecer_fecha(self.fecha_disponibilidad, datetime.now())
+
         self.hora_disp_inicio.delete(0, tk.END)
         self.hora_disp_inicio.insert(0, "09:00")
+
         self.hora_disp_fin.delete(0, tk.END)
         self.hora_disp_fin.insert(0, "10:00")
 
-    def datos_disponibilidad_formulario(self):
-        usuario = self.usuarios_combo.get(self.combo_disp_usuario.get())
-        tipo = self.tipos_disponibilidad_combo.get(self.combo_disp_tipo.get())
-        fecha = self.obtener_fecha(self.fecha_disponibilidad)
 
-        try:
-            inicio = datetime.strptime(self.hora_disp_inicio.get().strip(), "%H:%M").time()
-            fin = datetime.strptime(self.hora_disp_fin.get().strip(), "%H:%M").time()
-        except ValueError:
-            raise ValueError("Las horas deben tener formato HH:MM, por ejemplo 08:30.")
+    def datos_disponibilidad_formulario(self):
+        usuario = self.usuarios_disponibilidad_combo.get(self.combo_disp_usuario.get())
+
         if usuario is None:
             raise ValueError("Selecciona un usuario.")
-        if tipo is None:
-            raise ValueError("Selecciona un estado de disponibilidad.")
+
+        tipo = self.entry_disp_tipo.get().strip().lower()
+
+        estados_validos = [
+            "disponible",
+            "ocupado",
+            "no disponible"
+        ]
+
+        if tipo not in estados_validos:
+            raise ValueError("El estado solo puede ser: " "disponible, ocupado o no disponible.")
+
+        fecha_texto = self.obtener_fecha(self.fecha_disponibilidad)
+
+        hora_inicio_texto = self.hora_disp_inicio.get().strip()
+        hora_fin_texto = self.hora_disp_fin.get().strip()
+
+        try:
+            inicio = datetime.strptime(
+                f"{fecha_texto} {hora_inicio_texto}",
+                "%Y-%m-%d %H:%M"
+            )
+
+            fin = datetime.strptime(
+                f"{fecha_texto} {hora_fin_texto}",
+                "%Y-%m-%d %H:%M"
+            )
+
+        except ValueError:
+            raise ValueError(
+                "Las horas deben tener formato HH:MM, "
+                "por ejemplo 09:30."
+            )
+
         if fin <= inicio:
-            raise ValueError("La hora final debe ser posterior a la hora de inicio.")
+            raise ValueError("La hora final debe ser posterior a la hora inicial.")
 
-        return usuario, fecha, inicio, fin, tipo
+        return usuario, inicio, fin, tipo
 
-    def validar_solapamiento_disponibilidad(self, id_usuario, fecha, inicio, fin, id_excluir=None):
+    def validar_solapamiento_disponibilidad(
+        self,
+        id_usuario,
+        inicio,
+        fin,
+        id_excluir=None
+    ):
         sql = """
             SELECT id_disponibilidad
-            FROM disponibilidades
+            FROM disponibilidad
             WHERE id_usuario = %s
-              AND fecha = %s
-              AND hora_inicial < %s
-              AND hora_fin > %s
+            AND hora_inicial < %s
+            AND hora_final > %s
         """
-        params = [id_usuario, fecha, fin, inicio]
+
+        params = [
+            id_usuario,
+            fin,
+            inicio
+        ]
 
         if id_excluir is not None:
             sql += " AND id_disponibilidad <> %s"
             params.append(id_excluir)
 
         sql += " LIMIT 1"
+
         conflicto = self.ejecutar_consulta(sql, tuple(params), fetch=True)
+
         if conflicto:
             raise ValueError(
-                "El usuario ya tiene otra franja de disponibilidad que se cruza con ese horario."
+                "El usuario ya tiene otra disponibilidad "
+                "que se cruza con ese horario."
             )
 
     def agregar_disponibilidad(self):
-        try:
-            usuario, fecha, inicio, fin, tipo = self.datos_disponibilidad_formulario()
-            self.validar_solapamiento_disponibilidad(usuario, fecha, inicio, fin)
+        conn = None
 
-            self.ejecutar_consulta("""
-                INSERT INTO disponibilidades
-                    (id_usuario, fecha, hora_inicial, hora_fin, id_tipo_disponibilidad)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (usuario, fecha, inicio, fin, tipo))
+        try:
+            usuario, inicio, fin, tipo = (self.datos_disponibilidad_formulario())
+
+            self.validar_solapamiento_disponibilidad( usuario, inicio, fin)
+
+            conn = self.obtener_conexion()
+
+            with conn.cursor() as cur:
+
+                cur.execute(
+                    """
+                    INSERT INTO disponibilidad
+                        (hora_inicial, hora_final, id_usuario)
+                    VALUES (%s, %s, %s)
+                    RETURNING id_disponibilidad
+                    """,
+                    (inicio, fin, usuario))
+
+                id_disponibilidad = cur.fetchone()[0]
+
+                cur.execute(
+                    """
+                    INSERT INTO tipo_disponibilidad
+                        (
+                            id_disponibilidad,
+                            id_usuario,
+                            nombre
+                        )
+                    VALUES (%s, %s, %s)
+                    """,(id_disponibilidad, usuario, tipo))
+
+            conn.commit()
 
             self.limpiar_form_disponibilidad()
             self.actualizar_todas_las_tablas()
-            messagebox.showinfo("Éxito", "Disponibilidad registrada correctamente.")
+
+            messagebox.showinfo(
+                "Éxito",
+                "Disponibilidad registrada correctamente."
+            )
+
         except ValueError as e:
+            if conn:
+                conn.rollback()
+
             messagebox.showwarning("Datos inválidos", str(e))
+
         except Exception as e:
+            if conn:
+                conn.rollback()
+
             messagebox.showerror("Error de base de datos", str(e))
+
+        finally:
+            if conn:
+                conn.close()
+
 
     def actualizar_disponibilidad(self):
         did = self.disponibilidad_seleccionada_id()
-        if did is None:
-            return messagebox.showwarning(
-                "Selección requerida",
-                "Selecciona una disponibilidad para actualizar."
-            )
 
-        try:
-            usuario, fecha, inicio, fin, tipo = self.datos_disponibilidad_formulario()
-            self.validar_solapamiento_disponibilidad(usuario, fecha, inicio, fin, did)
-
-            self.ejecutar_consulta("""
-                UPDATE disponibilidades
-                SET id_usuario=%s,
-                    fecha=%s,
-                    hora_inicial=%s,
-                    hora_fin=%s,
-                    id_tipo_disponibilidad=%s
-                WHERE id_disponibilidad=%s
-            """, (usuario, fecha, inicio, fin, tipo, did))
-
-            self.actualizar_todas_las_tablas()
-            messagebox.showinfo("Éxito", "Disponibilidad actualizada.")
-        except ValueError as e:
-            messagebox.showwarning("Datos inválidos", str(e))
-        except Exception as e:
-            messagebox.showerror("Error", str(e))
-
-    def eliminar_disponibilidad(self):
-        did = self.disponibilidad_seleccionada_id()
         if did is None:
             return messagebox.showwarning(
                 "Selección requerida",
                 "Selecciona una disponibilidad."
             )
 
-        if not messagebox.askyesno("Confirmar", "¿Eliminar la disponibilidad seleccionada?"):
-            return
+        conn = None
 
         try:
-            self.ejecutar_consulta(
-                "DELETE FROM disponibilidades WHERE id_disponibilidad=%s",
-                (did,)
-            )
+            usuario, inicio, fin, tipo = (self.datos_disponibilidad_formulario())
+
+            self.validar_solapamiento_disponibilidad(usuario, inicio, fin, did)
+
+            conn = self.obtener_conexion()
+
+            with conn.cursor() as cur:
+
+                cur.execute(
+                    """
+                    UPDATE disponibilidad
+                    SET hora_inicial = %s,
+                        hora_final = %s,
+                        id_usuario = %s
+                    WHERE id_disponibilidad = %s
+                    """,(inicio, fin, usuario, did))
+
+                cur.execute(
+                    """
+                    UPDATE tipo_disponibilidad
+                    SET id_usuario = %s,
+                        nombre = %s
+                    WHERE id_disponibilidad = %s
+                    """, (usuario, tipo, did))
+
+            conn.commit()
+
+            self.actualizar_todas_las_tablas()
+
+            messagebox.showinfo("Éxito", "Disponibilidad actualizada.")
+
+        except ValueError as e:
+            if conn:
+                conn.rollback()
+
+            messagebox.showwarning("Datos inválidos", str(e))
+
+        except Exception as e:
+            if conn:
+                conn.rollback()
+
+            messagebox.showerror("Error", str(e))
+
+        finally:
+            if conn:
+                conn.close()
+
+
+    def eliminar_disponibilidad(self):
+        did = self.disponibilidad_seleccionada_id()
+
+        if did is None:
+            return messagebox.showwarning(
+                "Selección requerida",
+                "Selecciona una disponibilidad.")
+
+        if not messagebox.askyesno(
+            "Confirmar",
+            "¿Eliminar la disponibilidad seleccionada?"
+        ):
+            return
+
+        conn = None
+
+        try:
+            conn = self.obtener_conexion()
+
+            with conn.cursor() as cur:
+
+                cur.execute(
+                    """
+                    DELETE FROM tipo_disponibilidad
+                    WHERE id_disponibilidad = %s
+                    """, (did,))
+
+                cur.execute(
+                    """
+                    DELETE FROM disponibilidad
+                    WHERE id_disponibilidad = %s
+                    """, (did,))
+
+            conn.commit()
+
             self.limpiar_form_disponibilidad()
             self.actualizar_todas_las_tablas()
+
             messagebox.showinfo("Eliminado", "Disponibilidad eliminada.")
+
         except Exception as e:
-   
-                
+            if conn:
+                conn.rollback()
+
+            messagebox.showerror("No se pudo eliminar", str(e))
+
+        finally:
+            if conn:
+                conn.close()
+
+    def cargar_datos_disponibilidad(self):
+        try:
+            rows = self.ejecutar_consulta(
+                """
+                SELECT
+                    d.id_disponibilidad,
+                    u.id_usuario,
+                    u.nombre,
+                    u.apellido,
+                    d.hora_inicial,
+                    d.hora_final,
+                    td.nombre
+
+                FROM disponibilidad d
+
+                JOIN usuarios u
+                    ON u.id_usuario = d.id_usuario
+
+                JOIN tipo_disponibilidad td
+                    ON td.id_disponibilidad = d.id_disponibilidad
+
+                ORDER BY d.hora_inicial DESC
+                """,
+                fetch=True)
+
+            for item in self.tree_disponibilidad.get_children():
+                self.tree_disponibilidad.delete(item)
+
+            for row in rows:
+
+                usuario = (f"{row[2]} {row[3]} — #{row[1]}")
+
+                fecha = row[4].strftime("%Y-%m-%d")
+
+                inicio = row[4].strftime("%H:%M")
+
+                fin = row[5].strftime("%H:%M")
+
+                self.tree_disponibilidad.insert(
+                    "",
+                    "end",
+                    values=(row[0], usuario, fecha, inicio, fin, row[6]))
+
+        except Exception as e:
+            print(f"Error cargando disponibilidad: {e}")
+
+
+    def buscar_usuarios_disponibles(self):
+        try:
+            fecha = self.obtener_fecha(self.fecha_busqueda_disponibilidad)
+
+            inicio_texto = (self.hora_busqueda_inicio.get().strip())
+
+            fin_texto = (self.hora_busqueda_fin.get().strip())
+
+            inicio = datetime.strptime(f"{fecha} {inicio_texto}", "%Y-%m-%d %H:%M")
+
+            fin = datetime.strptime(f"{fecha} {fin_texto}", "%Y-%m-%d %H:%M")
+
+            if fin <= inicio:
+                raise ValueError("La hora final debe ser posterior " "a la hora inicial.")
+
+            usuarios = self.ejecutar_consulta(
+                """
+                SELECT id_usuario, nombre, apellido
+                FROM usuarios
+                WHERE activo = TRUE
+                ORDER BY nombre, apellido
+                """,
+                fetch=True)
+
+            disponibles_rows = self.ejecutar_consulta(
+                """
+                SELECT DISTINCT d.id_usuario
+
+                FROM disponibilidad d
+
+                JOIN tipo_disponibilidad td
+                    ON td.id_disponibilidad =
+                    d.id_disponibilidad
+
+                WHERE LOWER(td.nombre) = 'disponible'
+                AND d.hora_inicial <= %s
+                AND d.hora_final >= %s
+                """, (inicio, fin), fetch=True)
+
+            ids_disponibles = {row[0] for row in disponibles_rows}
+
+            bloqueados_rows = self.ejecutar_consulta(
+                """
+                SELECT DISTINCT d.id_usuario
+
+                FROM disponibilidad d
+
+                JOIN tipo_disponibilidad td
+                    ON td.id_disponibilidad =
+                    d.id_disponibilidad
+
+                WHERE LOWER(td.nombre)
+                    IN ('ocupado', 'no disponible')
+                AND d.hora_inicial < %s
+                AND d.hora_final > %s
+                """, (fin, inicio), fetch=True)
+
+            ids_bloqueados = {row[0] for row in bloqueados_rows}
+
+            propietarios_rows = self.ejecutar_consulta(
+                """
+                SELECT DISTINCT id_usuario_propietario
+                FROM eventos
+                WHERE fecha_inicio < %s
+                AND fecha_fin > %s
+                """, (fin, inicio), fetch=True)
+
+            ids_con_evento = {row[0] for row in propietarios_rows}
+
+            invitados_rows = self.ejecutar_consulta(
+                """
+                SELECT DISTINCT p.id_invitado
+
+                FROM participaciones p
+
+                JOIN eventos e
+                    ON e.id_evento = p.id_evento
+
+                WHERE e.fecha_inicio < %s
+                AND e.fecha_fin > %s
+                """,
+                (fin, inicio), fetch=True)
+
+            ids_con_evento.update(row[0] for row in invitados_rows)
+
+            for item in (self.tree_analisis_disponibilidad.get_children()):
+                self.tree_analisis_disponibilidad.delete(item)
+
+            cantidad_disponibles = 0
+
+            for id_usuario, nombre, apellido in usuarios:
+
+                usuario = (f"{nombre} {apellido} — #{id_usuario}")
+
+                if id_usuario not in ids_disponibles:
+
+                    resultado = "No disponible"
+                    detalle = ( "No tiene una disponibilidad " "que cubra todo el horario.")
+
+                elif id_usuario in ids_bloqueados:
+
+                    resultado = "No disponible"
+                    detalle = ("Tiene un horario bloqueado " "que se cruza con la búsqueda.")
+
+                elif id_usuario in ids_con_evento:
+
+                    resultado = "No disponible"
+                    detalle = ("Tiene un evento que se cruza " "con el horario.")
+
+                else:
+
+                    resultado = "Disponible"
+                    detalle = ("Tiene disponibilidad registrada " "y no posee eventos solapados.")
+
+                    cantidad_disponibles += 1
+
+                self.tree_analisis_disponibilidad.insert("", "end", values=(usuario, resultado, detalle))
+
+            self.label_resumen_disponibilidad.configure(
+                text=(
+                    f"Horario analizado: {fecha} "
+                    f"de {inicio_texto} a {fin_texto} | "
+                    f"Usuarios disponibles: "
+                    f"{cantidad_disponibles} "
+                    f"de {len(usuarios)}"))
+
+        except ValueError as e:
+            messagebox.showwarning("Datos inválidos", str(e))
+
+        except Exception as e:
+            messagebox.showerror("No se pudo realizar el análisis",
+                str(e))
+                    
     # -------------------- REFRESCO GENERAL --------------------
 
     def actualizar_todas_las_tablas(self):
@@ -1032,7 +1392,8 @@ class AppAgenda(ctk.CTk):
             self.cargar_datos_categorias()
             self.cargar_datos_eventos()
             self.cargar_datos_ubicacion()
-            self.cargar_datos_disponibilidades()
+            self.cargar_usuarios_disponibilidad()
+            self.cargar_datos_disponibilidad()
 
 
 if __name__ == "__main__":
