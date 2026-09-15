@@ -1,1 +1,1 @@
-# Proyecto-1-bases
+Hola profe/asistente. No sé cómo usar git muy bien pero aquí están los documentos necesarios. El script para Postgres, el archivo de python para ver la parte de la interfaz gráfica de los tres patitos y el pdf que contiene la parte escrita y las evidencias fotográficas :)
