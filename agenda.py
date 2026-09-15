@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
-from datetime import datetime
+from datetime import datetime, date
 
 import customtkinter as ctk
 import psycopg2
@@ -134,7 +134,7 @@ class AppAgenda(ctk.CTk):
             ("Categorías", "📁"),
             ("Eventos", "🗓️"),
             ("Ubicaciones", "📍"),
-            #("Tareas pendientes", "👀"),
+            ("Tareas pendientes", "👀"),
             ("Disponibilidad", "💼")
         ], start=2):
             btn = ctk.CTkButton(
@@ -175,15 +175,16 @@ class AppAgenda(ctk.CTk):
         self.tab_categorias = self.tabview.add("Categorías")
         self.tab_eventos = self.tabview.add("Eventos")
         self.tab_ubicacion = self.tabview.add("Ubicaciones")
-        self.tab_tareas_pendientes = self.tabview.add("Tareas pendientes")
         self.tab_disponibilidad = self.tabview.add("Disponibilidad")
+        self.tab_tareas = self.tabview.add("Tareas pendientes")
+
 
         self.configurar_pestana_usuarios()
         self.configurar_pestana_categorias()
         self.configurar_pestana_eventos()
         self.configurar_pestana_ubicacion()
-        self.configurar_pestana_tareas_pendientes()
         self.configurar_pestana_disponibilidad()
+        self.configurar_pestana_tareas()
         self.seleccionar_modulo("Usuarios")
 
     def al_cambiar_pestana(self):
@@ -832,18 +833,12 @@ class AppAgenda(ctk.CTk):
         ctk.CTkButton(form, text="🧹 Nueva / Limpiar", command=self.limpiar_form_disponibilidad, fg_color="gray").pack(fill="x", padx=10, pady=5)
         ctk.CTkButton(form, text="🗑️ Eliminar seleccionada", command=self.eliminar_disponibilidad, fg_color="#b33939", hover_color="#8f2d2d").pack(fill="x", padx=10, pady=5)
 
-
-        # ---------------- RF-12: análisis de intervalos ----------------
         analisis = ctk.CTkFrame(cuerpo)
         analisis.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(10, 0))
-
         ctk.CTkLabel(analisis, text="Análisis de usuarios disponibles", font=ctk.CTkFont(size=16, weight="bold")).pack(anchor="w", padx=15, pady=(12, 2))
-
         ctk.CTkLabel(analisis, text="Cruza las franjas declaradas con los eventos ya agendados para detectar solapamientos.", font=ctk.CTkFont(size=11)).pack(anchor="w", padx=15, pady=(0, 8))
-
         filtros = ctk.CTkFrame(analisis, fg_color="transparent")
         filtros.pack(fill="x", padx=15, pady=(0, 8))
-
         self.fecha_busqueda_disponibilidad = self.crear_selector_fecha(filtros)
         self.fecha_busqueda_disponibilidad.pack(side="left", padx=(0, 6))
 
@@ -853,20 +848,13 @@ class AppAgenda(ctk.CTk):
             placeholder_text="Inicio HH:MM"
         )
         self.hora_busqueda_inicio.pack(side="left", padx=4)
-
-        self.hora_busqueda_fin = ctk.CTkEntry(
-            filtros,
-            width=95,
-            placeholder_text="Fin HH:MM"
-        )
+        self.hora_busqueda_fin = ctk.CTkEntry(filtros, width=95, placeholder_text="Fin HH:MM")
         self.hora_busqueda_fin.pack(side="left", padx=4)
-
         ctk.CTkButton(
             filtros,
             text="Buscar disponibilidad",
             width=180,
-            command=self.buscar_usuarios_disponibles
-        ).pack(side="left", padx=(8, 0))
+            command=self.buscar_usuarios_disponibles).pack(side="left", padx=(8, 0))
 
         self.label_resumen_disponibilidad = ctk.CTkLabel(
             analisis,
@@ -874,13 +862,10 @@ class AppAgenda(ctk.CTk):
             font=ctk.CTkFont(size=12)
         )
         self.label_resumen_disponibilidad.pack(anchor="w", padx=15, pady=(0, 6))
-
-        self.tree_analisis_disponibilidad = self.crear_treeview(
-            analisis,
+        self.tree_analisis_disponibilidad = self.crear_treeview(analisis,
             ("Usuario", "Resultado", "Detalle"),
             (250, 150, 520)
         )
-
         self.limpiar_form_disponibilidad()
         self.hora_busqueda_inicio.insert(0, "14:00")
         self.hora_busqueda_fin.insert(0, "16:00")
@@ -892,108 +877,77 @@ class AppAgenda(ctk.CTk):
                 SELECT id_usuario, nombre, apellido
                 FROM usuarios
                 ORDER BY nombre, apellido """, fetch=True)
-
             self.usuarios_disponibilidad_combo = {}
-
             for id_usuario, nombre, apellido in rows:
                 etiqueta = f"{nombre} {apellido} — #{id_usuario}"
                 self.usuarios_disponibilidad_combo[etiqueta] = id_usuario
-
             valores = (["Seleccione un usuario"] + list(self.usuarios_disponibilidad_combo.keys()))
             self.combo_disp_usuario.configure(values=valores)
-
             if self.combo_disp_usuario.get() not in valores:
                 self.combo_disp_usuario.set("Seleccione un usuario")
-
         except Exception as e:
             print(f"Error cargando usuarios de disponibilidad: {e}")
 
-
     def disponibilidad_seleccionada_id(self):
         sel = self.tree_disponibilidad.selection()
-
         if not sel:
             return None
-
         return self.tree_disponibilidad.item(sel[0])["values"][0]
 
     def cargar_disponibilidad_seleccionada(self, _=None):
         sel = self.tree_disponibilidad.selection()
-
         if not sel:
             return
-
         vals = self.tree_disponibilidad.item(sel[0])["values"]
-
         self.combo_disp_usuario.set(vals[1])
-
         self.establecer_fecha(self.fecha_disponibilidad, str(vals[2]))
-
         self.hora_disp_inicio.delete(0, tk.END)
         self.hora_disp_inicio.insert(0, str(vals[3]))
-
         self.hora_disp_fin.delete(0, tk.END)
         self.hora_disp_fin.insert(0, str(vals[4]))
-
         self.entry_disp_tipo.delete(0, tk.END)
         self.entry_disp_tipo.insert(0, str(vals[5]))
 
     def limpiar_form_disponibilidad(self):
         if hasattr(self, "tree_disponibilidad"):
             self.tree_disponibilidad.selection_remove(self.tree_disponibilidad.selection())
-
         self.combo_disp_usuario.set("Seleccione un usuario")
-
         self.entry_disp_tipo.delete(0, tk.END)
-
         self.establecer_fecha(self.fecha_disponibilidad, datetime.now())
-
         self.hora_disp_inicio.delete(0, tk.END)
         self.hora_disp_inicio.insert(0, "09:00")
-
         self.hora_disp_fin.delete(0, tk.END)
         self.hora_disp_fin.insert(0, "10:00")
 
-
     def datos_disponibilidad_formulario(self):
         usuario = self.usuarios_disponibilidad_combo.get(self.combo_disp_usuario.get())
-
         if usuario is None:
             raise ValueError("Selecciona un usuario.")
-
         tipo = self.entry_disp_tipo.get().strip().lower()
-
         estados_validos = [
             "disponible",
             "ocupado",
             "no disponible"
         ]
-
         if tipo not in estados_validos:
             raise ValueError("El estado solo puede ser: " "disponible, ocupado o no disponible.")
-
         fecha_texto = self.obtener_fecha(self.fecha_disponibilidad)
-
         hora_inicio_texto = self.hora_disp_inicio.get().strip()
         hora_fin_texto = self.hora_disp_fin.get().strip()
-
         try:
             inicio = datetime.strptime(
                 f"{fecha_texto} {hora_inicio_texto}",
                 "%Y-%m-%d %H:%M"
             )
-
             fin = datetime.strptime(
                 f"{fecha_texto} {hora_fin_texto}",
                 "%Y-%m-%d %H:%M"
             )
-
         except ValueError:
             raise ValueError(
                 "Las horas deben tener formato HH:MM, "
                 "por ejemplo 09:30."
             )
-
         if fin <= inicio:
             raise ValueError("La hora final debe ser posterior a la hora inicial.")
 
@@ -1013,21 +967,16 @@ class AppAgenda(ctk.CTk):
             AND hora_inicial < %s
             AND hora_final > %s
         """
-
         params = [
             id_usuario,
             fin,
             inicio
         ]
-
         if id_excluir is not None:
             sql += " AND id_disponibilidad <> %s"
             params.append(id_excluir)
-
         sql += " LIMIT 1"
-
         conflicto = self.ejecutar_consulta(sql, tuple(params), fetch=True)
-
         if conflicto:
             raise ValueError(
                 "El usuario ya tiene otra disponibilidad "
@@ -1036,16 +985,11 @@ class AppAgenda(ctk.CTk):
 
     def agregar_disponibilidad(self):
         conn = None
-
         try:
             usuario, inicio, fin, tipo = (self.datos_disponibilidad_formulario())
-
             self.validar_solapamiento_disponibilidad( usuario, inicio, fin)
-
             conn = self.obtener_conexion()
-
             with conn.cursor() as cur:
-
                 cur.execute(
                     """
                     INSERT INTO disponibilidad
@@ -1054,9 +998,7 @@ class AppAgenda(ctk.CTk):
                     RETURNING id_disponibilidad
                     """,
                     (inicio, fin, usuario))
-
                 id_disponibilidad = cur.fetchone()[0]
-
                 cur.execute(
                     """
                     INSERT INTO tipo_disponibilidad
@@ -1067,54 +1009,38 @@ class AppAgenda(ctk.CTk):
                         )
                     VALUES (%s, %s, %s)
                     """,(id_disponibilidad, usuario, tipo))
-
             conn.commit()
-
             self.limpiar_form_disponibilidad()
             self.actualizar_todas_las_tablas()
-
             messagebox.showinfo(
                 "Éxito",
                 "Disponibilidad registrada correctamente."
             )
-
         except ValueError as e:
             if conn:
                 conn.rollback()
-
             messagebox.showwarning("Datos inválidos", str(e))
-
         except Exception as e:
             if conn:
                 conn.rollback()
-
             messagebox.showerror("Error de base de datos", str(e))
-
         finally:
             if conn:
                 conn.close()
 
-
     def actualizar_disponibilidad(self):
         did = self.disponibilidad_seleccionada_id()
-
         if did is None:
             return messagebox.showwarning(
                 "Selección requerida",
                 "Selecciona una disponibilidad."
             )
-
         conn = None
-
         try:
             usuario, inicio, fin, tipo = (self.datos_disponibilidad_formulario())
-
             self.validar_solapamiento_disponibilidad(usuario, inicio, fin, did)
-
             conn = self.obtener_conexion()
-
             with conn.cursor() as cur:
-
                 cur.execute(
                     """
                     UPDATE disponibilidad
@@ -1131,33 +1057,23 @@ class AppAgenda(ctk.CTk):
                         nombre = %s
                     WHERE id_disponibilidad = %s
                     """, (usuario, tipo, did))
-
             conn.commit()
-
             self.actualizar_todas_las_tablas()
-
             messagebox.showinfo("Éxito", "Disponibilidad actualizada.")
-
         except ValueError as e:
             if conn:
                 conn.rollback()
-
             messagebox.showwarning("Datos inválidos", str(e))
-
         except Exception as e:
             if conn:
                 conn.rollback()
-
             messagebox.showerror("Error", str(e))
-
         finally:
             if conn:
                 conn.close()
 
-
     def eliminar_disponibilidad(self):
         did = self.disponibilidad_seleccionada_id()
-
         if did is None:
             return messagebox.showwarning(
                 "Selección requerida",
@@ -1168,39 +1084,28 @@ class AppAgenda(ctk.CTk):
             "¿Eliminar la disponibilidad seleccionada?"
         ):
             return
-
         conn = None
-
         try:
             conn = self.obtener_conexion()
-
             with conn.cursor() as cur:
-
                 cur.execute(
                     """
                     DELETE FROM tipo_disponibilidad
                     WHERE id_disponibilidad = %s
                     """, (did,))
-
                 cur.execute(
                     """
                     DELETE FROM disponibilidad
                     WHERE id_disponibilidad = %s
                     """, (did,))
-
             conn.commit()
-
             self.limpiar_form_disponibilidad()
             self.actualizar_todas_las_tablas()
-
             messagebox.showinfo("Eliminado", "Disponibilidad eliminada.")
-
         except Exception as e:
             if conn:
                 conn.rollback()
-
             messagebox.showerror("No se pudo eliminar", str(e))
-
         finally:
             if conn:
                 conn.close()
@@ -1217,32 +1122,21 @@ class AppAgenda(ctk.CTk):
                     d.hora_inicial,
                     d.hora_final,
                     td.nombre
-
                 FROM disponibilidad d
-
                 JOIN usuarios u
                     ON u.id_usuario = d.id_usuario
-
                 JOIN tipo_disponibilidad td
                     ON td.id_disponibilidad = d.id_disponibilidad
-
                 ORDER BY d.hora_inicial DESC
                 """,
                 fetch=True)
-
             for item in self.tree_disponibilidad.get_children():
                 self.tree_disponibilidad.delete(item)
-
             for row in rows:
-
                 usuario = (f"{row[2]} {row[3]} — #{row[1]}")
-
                 fecha = row[4].strftime("%Y-%m-%d")
-
                 inicio = row[4].strftime("%H:%M")
-
                 fin = row[5].strftime("%H:%M")
-
                 self.tree_disponibilidad.insert(
                     "",
                     "end",
@@ -1255,18 +1149,12 @@ class AppAgenda(ctk.CTk):
     def buscar_usuarios_disponibles(self):
         try:
             fecha = self.obtener_fecha(self.fecha_busqueda_disponibilidad)
-
             inicio_texto = (self.hora_busqueda_inicio.get().strip())
-
             fin_texto = (self.hora_busqueda_fin.get().strip())
-
             inicio = datetime.strptime(f"{fecha} {inicio_texto}", "%Y-%m-%d %H:%M")
-
             fin = datetime.strptime(f"{fecha} {fin_texto}", "%Y-%m-%d %H:%M")
-
             if fin <= inicio:
                 raise ValueError("La hora final debe ser posterior " "a la hora inicial.")
-
             usuarios = self.ejecutar_consulta(
                 """
                 SELECT id_usuario, nombre, apellido
@@ -1279,38 +1167,28 @@ class AppAgenda(ctk.CTk):
             disponibles_rows = self.ejecutar_consulta(
                 """
                 SELECT DISTINCT d.id_usuario
-
                 FROM disponibilidad d
-
                 JOIN tipo_disponibilidad td
                     ON td.id_disponibilidad =
                     d.id_disponibilidad
-
                 WHERE LOWER(td.nombre) = 'disponible'
                 AND d.hora_inicial <= %s
                 AND d.hora_final >= %s
                 """, (inicio, fin), fetch=True)
-
             ids_disponibles = {row[0] for row in disponibles_rows}
-
             bloqueados_rows = self.ejecutar_consulta(
                 """
                 SELECT DISTINCT d.id_usuario
-
                 FROM disponibilidad d
-
                 JOIN tipo_disponibilidad td
                     ON td.id_disponibilidad =
                     d.id_disponibilidad
-
                 WHERE LOWER(td.nombre)
                     IN ('ocupado', 'no disponible')
                 AND d.hora_inicial < %s
                 AND d.hora_final > %s
                 """, (fin, inicio), fetch=True)
-
             ids_bloqueados = {row[0] for row in bloqueados_rows}
-
             propietarios_rows = self.ejecutar_consulta(
                 """
                 SELECT DISTINCT id_usuario_propietario
@@ -1318,58 +1196,37 @@ class AppAgenda(ctk.CTk):
                 WHERE fecha_inicio < %s
                 AND fecha_fin > %s
                 """, (fin, inicio), fetch=True)
-
             ids_con_evento = {row[0] for row in propietarios_rows}
-
             invitados_rows = self.ejecutar_consulta(
                 """
                 SELECT DISTINCT p.id_invitado
-
                 FROM participaciones p
-
                 JOIN eventos e
                     ON e.id_evento = p.id_evento
-
                 WHERE e.fecha_inicio < %s
                 AND e.fecha_fin > %s
                 """,
                 (fin, inicio), fetch=True)
-
             ids_con_evento.update(row[0] for row in invitados_rows)
-
             for item in (self.tree_analisis_disponibilidad.get_children()):
                 self.tree_analisis_disponibilidad.delete(item)
-
             cantidad_disponibles = 0
-
             for id_usuario, nombre, apellido in usuarios:
-
                 usuario = (f"{nombre} {apellido} — #{id_usuario}")
-
                 if id_usuario not in ids_disponibles:
-
                     resultado = "No disponible"
                     detalle = ( "No tiene una disponibilidad " "que cubra todo el horario.")
-
                 elif id_usuario in ids_bloqueados:
-
                     resultado = "No disponible"
                     detalle = ("Tiene un horario bloqueado " "que se cruza con la búsqueda.")
-
                 elif id_usuario in ids_con_evento:
-
                     resultado = "No disponible"
                     detalle = ("Tiene un evento que se cruza " "con el horario.")
-
                 else:
-
                     resultado = "Disponible"
                     detalle = ("Tiene disponibilidad registrada " "y no posee eventos solapados.")
-
                     cantidad_disponibles += 1
-
                 self.tree_analisis_disponibilidad.insert("", "end", values=(usuario, resultado, detalle))
-
             self.label_resumen_disponibilidad.configure(
                 text=(
                     f"Horario analizado: {fecha} "
@@ -1384,6 +1241,601 @@ class AppAgenda(ctk.CTk):
         except Exception as e:
             messagebox.showerror("No se pudo realizar el análisis",
                 str(e))
+    #-------------------- Tareas pendientes --------------------
+
+    def configurar_pestana_tareas(self):
+
+        self.crear_encabezado(self.tab_tareas, "Tareas asociadas a eventos", "Administra tareas por evento y consulta la carga de trabajo y vencimientos.")
+        cuerpo = ctk.CTkFrame(self.tab_tareas, fg_color="transparent")
+        cuerpo.pack(fill="both", expand=True, padx=10, pady=5)
+        cuerpo.grid_columnconfigure(0, weight=3)
+        cuerpo.grid_columnconfigure(1, weight=1)
+        cuerpo.grid_rowconfigure(0, weight=3)
+        cuerpo.grid_rowconfigure(1, weight=2)
+
+        tabla = ctk.CTkFrame(cuerpo)
+        tabla.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+
+        form = ctk.CTkScrollableFrame(cuerpo, width=360)
+        form.grid(row=0, column=1, sticky="nsew")
+
+        self.tree_tareas = self.crear_treeview(
+            tabla,
+            (
+                "ID",
+                "Evento",
+                "Tarea",
+                "Responsable",
+                "Prioridad",
+                "Estado",
+                "Fecha límite",
+                "Situación"
+            ),
+            (
+                60,
+                190,
+                190,
+                190,
+                90,
+                110,
+                110,
+                110
+            )
+        )
+
+        self.tree_tareas.bind("<<TreeviewSelect>>", self.cargar_tarea_seleccionada)
+
+        ctk.CTkLabel(
+            form,
+            text="Formulario de tarea",
+            font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(10, 15))
+
+        self.entry_tarea_titulo = ctk.CTkEntry(form, placeholder_text="Nombre de la tarea")
+
+        self.entry_tarea_titulo.pack(fill="x", padx=10, pady=5)
+
+        ctk.CTkLabel(form, text="Descripción").pack(anchor="w", padx=10, pady=(8, 2))
+
+        self.text_tarea_descripcion = ctk.CTkTextbox(form, height=80)
+
+        self.text_tarea_descripcion.pack(fill="x", padx=10, pady=4)
+
+        ctk.CTkLabel(
+            form,
+            text="Evento asociado").pack(anchor="w", padx=10, pady=(8, 2))
+
+        self.combo_tarea_evento = ctk.CTkComboBox(form, values=["Seleccione un evento"], state="readonly")
+
+        self.combo_tarea_evento.set("Seleccione un evento")
+
+        self.combo_tarea_evento.pack(fill="x", padx=10, pady=4)
+
+        ctk.CTkLabel(form, text="Responsable").pack(anchor="w", padx=10, pady=(8, 2))
+
+        self.combo_tarea_usuario = ctk.CTkComboBox(form, values=["Seleccione un usuario"], state="readonly")
+
+        self.combo_tarea_usuario.set("Seleccione un usuario")
+
+        self.combo_tarea_usuario.pack(fill="x", padx=10, pady=4)
+
+        ctk.CTkLabel(form, text="Prioridad").pack(anchor="w", padx=10, pady=(8, 2))
+
+        self.combo_tarea_prioridad = ctk.CTkComboBox(
+            form,
+            values=[
+                "baja",
+                "Media",
+                "Alta"], state="readonly")
+
+        self.combo_tarea_prioridad.set("Media")
+
+        self.combo_tarea_prioridad.pack(fill="x", padx=10, pady=4)
+
+        ctk.CTkLabel(
+            form,
+            text="Estado").pack(anchor="w", padx=10, pady=(8, 2))
+
+        self.combo_tarea_estado = ctk.CTkComboBox(
+            form,
+            values=[
+                "Pendiente",
+                "En proceso",
+                "Completada",
+                "Vencida"], state="readonly")
+
+        self.combo_tarea_estado.set("Pendiente")
+
+        self.combo_tarea_estado.pack(fill="x", padx=10, pady=4)
+
+        ctk.CTkLabel(form, text="Fecha límite").pack(anchor="w", padx=10, pady=(8, 2))
+
+        self.fecha_limite_tarea = self.crear_selector_fecha(form)
+
+        self.fecha_limite_tarea.pack(fill="x", padx=10, pady=4)
+
+        ctk.CTkButton(form, text="➕ Crear tarea", command=self.agregar_tarea).pack(fill="x", padx=10, pady=(15, 5))
+
+        ctk.CTkButton(
+            form,
+            text="💾 Actualizar seleccionada",
+            command=self.actualizar_tarea).pack(fill="x",padx=10, pady=5)
+
+        ctk.CTkButton(form, text="🧹 Nueva / Limpiar", command=self.limpiar_form_tarea, fg_color="gray").pack(fill="x", padx=10, pady=5)
+
+        ctk.CTkButton(form,text="🗑️ Eliminar seleccionada", command=self.eliminar_tarea, fg_color="#b33939", hover_color="#8f2d2d").pack(fill="x", padx=10, pady=5)
+
+        reporte = ctk.CTkFrame(cuerpo)
+
+        reporte.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(10, 0))
+
+        reporte.grid_columnconfigure(0, weight=1)
+
+        reporte.grid_columnconfigure(1, weight=1)
+
+        reporte.grid_rowconfigure(2, weight=1)
+
+        ctk.CTkLabel(reporte, text="📊 Reporte de carga de trabajo y tareas pendientes", font=ctk.CTkFont( size=16, weight="bold")).grid( row=0, column=0, columnspan=2, sticky="w",padx=15, pady=(12, 2))
+
+        self.label_resumen_tareas = ctk.CTkLabel(reporte, text="Cargando información", font=ctk.CTkFont(size=12))
+
+        self.label_resumen_tareas.grid( row=1, column=0, columnspan=2, sticky="w", padx=15, pady=(0, 6))
+
+        resumen_frame = ctk.CTkFrame(reporte)
+
+        resumen_frame.grid(row=2,column=0, sticky="nsew", padx=(10, 5), pady=(0, 10))
+
+        ctk.CTkLabel(resumen_frame, text="Carga activa por usuario",font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=15, pady=(8, 4))
+
+        self.tree_reporte_tareas = self.crear_treeview(
+            resumen_frame,
+            (
+                "Usuario",
+                "Pendientes",
+                "En proceso",
+                "Activas",
+                "Vencidas"
+            ),
+            (
+                220,
+                90,
+                100,
+                90,
+                90
+            )
+        )
+
+        vencidas_frame = ctk.CTkFrame(reporte)
+
+        vencidas_frame.grid(row=2, column=1, sticky="nsew", padx=(5, 10), pady=(0, 10))
+
+        ctk.CTkLabel(vencidas_frame, text="Tareas vencidas", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=15, pady=(8, 4))
+
+        self.tree_tareas_vencidas = self.crear_treeview(
+            vencidas_frame,
+            (
+                "Tarea",
+                "Evento",
+                "Responsable",
+                "Fecha límite",
+                "Días vencida"
+            ),
+            (
+                190,
+                180,
+                180,
+                110,
+                100
+            ))
+
+        self.limpiar_form_tarea()
+
+    def tarea_seleccionada_id(self):
+        sel = self.tree_tareas.selection()
+        if not sel:
+            return None
+        return self.tree_tareas.item(sel[0])["values"][0]
+
+    def cargar_tarea_seleccionada(self, _=None):
+        tid = self.tarea_seleccionada_id()
+        if tid is None:
+            return
+        try:
+            rows = self.ejecutar_consulta(
+                """
+                SELECT
+                    t.nombre_tareas,
+                    t.descripcion,
+                    t.prioridad,
+                    t.estado,
+                    t.fecha_limite,
+                    t.id_evento,
+                    e.titulo,
+                    t.id_usuario,
+                    u.nombre,
+                    u.apellido
+                FROM tareas_asociadas t
+                JOIN eventos e
+                    ON e.id_evento = t.id_evento
+                JOIN usuarios u
+                    ON u.id_usuario = t.id_usuario
+                WHERE t.id_tarea = %s
+                """,
+                (tid,), fetch=True)
+            if not rows:
+                return
+            row = rows[0]
+            evento = (f"{row[6]} — #{row[5]}")
+            usuario = (f"{row[8]} {row[9]} — #{row[7]}")
+
+            self.entry_tarea_titulo.delete(0, tk.END)
+            self.entry_tarea_titulo.insert(0, row[0])
+            self.text_tarea_descripcion.delete("1.0", tk.END)
+            self.text_tarea_descripcion.insert("1.0", row[1] or "")
+            self.combo_tarea_evento.set(evento)
+            self.combo_tarea_usuario.set(usuario)
+            self.combo_tarea_prioridad.set(row[2])
+            self.combo_tarea_estado.set(row[3])
+            self.establecer_fecha(self.fecha_limite_tarea,row[4])
+
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def limpiar_form_tarea(self):
+        if hasattr(self, "tree_tareas"):
+            self.tree_tareas.selection_remove(self.tree_tareas.selection())
+        self.entry_tarea_titulo.delete(0, tk.END)
+        self.text_tarea_descripcion.delete("1.0", tk.END)
+        self.combo_tarea_evento.set("Seleccione un evento")
+        self.combo_tarea_usuario.set("Seleccione un usuario")
+        self.combo_tarea_prioridad.set("Media")
+        self.combo_tarea_estado.set("Pendiente")
+        self.establecer_fecha(self.fecha_limite_tarea,datetime.now())
+
+    def datos_tarea_formulario(self):
+        nombre_tarea = (self.entry_tarea_titulo.get().strip())
+        descripcion = (self.text_tarea_descripcion.get("1.0", tk.END).strip())
+        evento = self.eventos_combo.get(self.combo_tarea_evento.get())
+        etiqueta_usuario = (self.combo_tarea_usuario.get())
+        usuario = self.usuarios_combo.get(etiqueta_usuario)
+        prioridad = (self.combo_tarea_prioridad.get())
+        estado = (self.combo_tarea_estado.get())
+        fecha_limite = self.obtener_fecha(self.fecha_limite_tarea)
+
+        if not nombre_tarea:
+            raise ValueError("Indica el nombre de la tarea.")
+        if len(nombre_tarea) > 30:
+            raise ValueError("El nombre de la tarea no puede superar " "los 30 caracteres.")
+        if evento is None:
+            raise ValueError("Selecciona el evento asociado.")
+        if usuario is None:
+            raise ValueError("Selecciona el usuario responsable.")
+        if prioridad not in ("baja", "Media", "Alta"):
+            raise ValueError("La prioridad debe ser " "baja, Media o Alta.")
+        if estado not in ("Pendiente", "En proceso", "Completada", "Vencida"):
+            raise ValueError("Selecciona un estado válido.")
+
+        responsable = etiqueta_usuario.split(" — #")[0]
+        if len(responsable) > 30:
+            raise ValueError("El nombre del responsable supera " "los 30 caracteres.")
+
+        return (
+            estado,
+            responsable,
+            nombre_tarea,
+            descripcion,
+            fecha_limite,
+            prioridad,
+            evento,
+            usuario
+        )
+
+    def agregar_tarea(self):
+        try:
+            datos = self.datos_tarea_formulario()
+            self.ejecutar_consulta(
+                """
+                INSERT INTO tareas_asociadas
+                (
+                    estado,
+                    responsable,
+                    nombre_tareas,
+                    descripcion,
+                    fecha_limite,
+                    prioridad,
+                    id_evento,
+                    id_usuario
+                )
+                VALUES (
+                    %s, %s, %s, %s,
+                    %s, %s, %s, %s
+                )
+                """, datos)
+
+            self.limpiar_form_tarea()
+            self.actualizar_todas_las_tablas()
+            messagebox.showinfo("Éxito", "Tarea creada correctamente.")
+        except ValueError as e:
+            messagebox.showwarning("Datos inválidos", str(e))
+        except Exception as e:
+            messagebox.showerror("Error de base de datos", str(e))
+
+    def actualizar_tarea(self):
+        tid = self.tarea_seleccionada_id()
+        if tid is None:
+            return messagebox.showwarning("Selección requerida", "Selecciona una tarea para actualizar.")
+        try:
+            (
+                estado,
+                responsable,
+                nombre_tarea,
+                descripcion,
+                fecha_limite,
+                prioridad,
+                evento,
+                usuario
+            ) = self.datos_tarea_formulario()
+            self.ejecutar_consulta(
+                """
+                UPDATE tareas_asociadas
+                SET estado = %s,
+                    responsable = %s,
+                    nombre_tareas = %s,
+                    descripcion = %s,
+                    fecha_limite = %s,
+                    prioridad = %s,
+                    id_evento = %s,
+                    id_usuario = %s
+                WHERE id_tarea = %s
+                """,
+                (
+                    estado,
+                    responsable,
+                    nombre_tarea,
+                    descripcion,
+                    fecha_limite,
+                    prioridad,
+                    evento,
+                    usuario,
+                    tid
+                )
+            )
+            self.actualizar_todas_las_tablas()
+            messagebox.showinfo("Éxito", "Tarea actualizada correctamente.")
+
+        except ValueError as e:
+            messagebox.showwarning("Datos inválidos", str(e))
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+    def eliminar_tarea(self):
+        tid = self.tarea_seleccionada_id()
+        if tid is None:
+
+            return messagebox.showwarning("Selección requerida", "Selecciona una tarea.")
+
+        if not messagebox.askyesno("Confirmar","¿Eliminar la tarea seleccionad?"):
+            return
+        try:
+            self.ejecutar_consulta(
+                """
+                DELETE FROM tareas_asociadas
+                WHERE id_tarea = %s
+                """, (tid,))
+
+            self.limpiar_form_tarea()
+            self.actualizar_todas_las_tablas()
+            messagebox.showinfo("Eliminado", "Tarea eliminada.")
+
+        except Exception as e:
+            messagebox.showerror("No se pudo eliminar", str(e))
+
+    def cargar_datos_tareas(self):
+        try:
+
+            valores_eventos = (["Seleccione un evento"] + list(self.eventos_combo.keys()))
+            self.combo_tarea_evento.configure(values=valores_eventos)
+            if (self.combo_tarea_evento.get()not in valores_eventos):
+                self.combo_tarea_evento.set("Seleccione un evento")
+
+            valores_usuarios = (["Seleccione un usuario"] + list(self.usuarios_combo.keys()))
+            self.combo_tarea_usuario.configure(values=valores_usuarios)
+
+            if (self.combo_tarea_usuario.get() not in valores_usuarios):
+                self.combo_tarea_usuario.set("Seleccione un usuario")
+
+            rows = self.ejecutar_consulta(
+                """
+                SELECT
+                    t.id_tarea,
+                    t.id_evento,
+                    e.titulo,
+                    t.nombre_tareas,
+                    t.id_usuario,
+                    u.nombre,
+                    u.apellido,
+                    t.prioridad,
+                    t.estado,
+                    t.fecha_limite
+                FROM tareas_asociadas t
+                JOIN eventos e
+                    ON e.id_evento = t.id_evento
+                JOIN usuarios u
+                    ON u.id_usuario = t.id_usuario
+                ORDER BY
+                    t.fecha_limite,
+                    t.nombre_tareas
+                """,
+                fetch=True
+            )
+
+            for item in self.tree_tareas.get_children():
+                self.tree_tareas.delete(item)
+            for row in rows:
+                evento = (f"{row[2]} — #{row[1]}")
+                usuario = (f"{row[5]} {row[6]} — #{row[4]}")
+                fecha_limite = row[9]
+
+                if row[8] == "Vencida":
+                    situacion = "Vencida"
+                elif (
+                    row[8] in ("Pendiente", "En proceso")
+                    and fecha_limite < date.today()):
+                    situacion = "Vencida"
+                elif row[8] == "Completada":
+                    situacion = "Completada"
+                else:
+                    situacion = "Al día"
+                self.tree_tareas.insert(
+                    "",
+                    "end",
+                    values=(
+                        row[0],
+                        evento,
+                        row[3],
+                        usuario,
+                        row[7],
+                        row[8],
+                        fecha_limite.strftime(
+                            "%Y-%m-%d"
+                        ), situacion))
+        except Exception as e:
+            print(f"Error cargando tareas: {e}")
+
+    def cargar_reporte_tareas(self):
+        try:
+            usuarios = self.ejecutar_consulta(
+                """
+                SELECT
+                    id_usuario,
+                    nombre,
+                    apellido
+                FROM usuarios
+                WHERE activo = TRUE
+                ORDER BY
+                    nombre,
+                    apellido
+                """,
+                fetch=True
+            )
+
+            tareas = self.ejecutar_consulta(
+                """
+                SELECT
+                    id_usuario,
+                    estado,
+                    fecha_limite
+                FROM tareas_asociadas
+                WHERE estado IN (
+                    'Pendiente',
+                    'En proceso',
+                    'Vencida'
+                )
+                """,
+                fetch=True
+            )
+            conteo = {}
+            for id_usuario, _, _ in usuarios:
+                conteo[id_usuario] = {
+                    "pendientes": 0,
+                    "en_proceso": 0,
+                    "activas": 0,
+                    "vencidas": 0
+                }
+            for (id_usuario, estado, fecha_limite) in tareas:
+                if id_usuario not in conteo:
+                    continue
+                conteo[id_usuario]["activas"] += 1
+                if estado == "Pendiente":
+                    conteo[id_usuario]["pendientes"] += 1
+                elif estado == "En proceso":
+                    conteo[id_usuario]["en_proceso"] += 1
+
+                if (estado == "Vencida" or fecha_limite < date.today()):
+                    conteo[id_usuario]["vencidas"] += 1
+
+            for item in self.tree_reporte_tareas.get_children():
+                self.tree_reporte_tareas.delete(item)
+            total_activas = 0
+            total_vencidas = 0
+            for (id_usuario, nombre, apellido) in usuarios:
+                datos = conteo[id_usuario]
+                total_activas += (datos["activas"])
+                total_vencidas += (datos["vencidas"])
+                usuario = ( f"{nombre} {apellido} " f"— #{id_usuario}")
+
+                self.tree_reporte_tareas.insert(
+                    "",
+                    "end",
+                    values=(
+                        usuario,
+                        datos["pendientes"],
+                        datos["en_proceso"],
+                        datos["activas"],
+                        datos["vencidas"]
+                    ))
+
+            vencidas = self.ejecutar_consulta(
+                """
+                SELECT
+                    t.nombre_tareas,
+                    e.titulo,
+                    u.nombre,
+                    u.apellido,
+                    t.fecha_limite
+                FROM tareas_asociadas t
+                JOIN eventos e
+                    ON e.id_evento = t.id_evento
+                JOIN usuarios u
+                    ON u.id_usuario = t.id_usuario
+                WHERE
+                    t.estado = 'Vencida'
+                    OR (
+                        t.estado IN (
+                            'Pendiente',
+                            'En proceso'
+                        )
+                        AND t.fecha_limite
+                            < CURRENT_DATE
+                    )
+
+                ORDER BY t.fecha_limite
+                """,
+                fetch=True)
+            for item in (self.tree_tareas_vencidas.get_children()):
+                self.tree_tareas_vencidas.delete(item)
+            for row in vencidas:
+                responsable = (f"{row[2]} {row[3]}")
+                dias_vencida = (date.today() - row[4]).days
+                if dias_vencida < 0:
+                    dias_vencida = 0
+                self.tree_tareas_vencidas.insert(
+                    "",
+                    "end",
+                    values=(
+                        f"⚠ {row[0]}",
+                        row[1],
+                        responsable,
+                        row[4].strftime(
+                            "%Y-%m-%d"
+                        ),
+                        dias_vencida))
+
+            self.label_resumen_tareas.configure(
+                text=(
+                    f"Tareas activas: "
+                    f"{total_activas}   |   "
+                    f"Tareas vencidas: "
+                    f"{total_vencidas}   |   "
+                    f"Usuarios con seguimiento: "
+                    f"{len(usuarios)}"
+                ))
+        except Exception as e:
+            print(f"Error cargando reporte de tareas: {e}")
+            self.label_resumen_tareas.configure(
+                text=(
+                    "No se pudo cargar el reporte "
+                    "de tareas."
+                ))    
                     
     # -------------------- REFRESCO GENERAL --------------------
 
@@ -1394,6 +1846,8 @@ class AppAgenda(ctk.CTk):
             self.cargar_datos_ubicacion()
             self.cargar_usuarios_disponibilidad()
             self.cargar_datos_disponibilidad()
+            self.cargar_datos_tareas()
+            self.cargar_reporte_tareas()
 
 
 if __name__ == "__main__":
